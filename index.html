@@ -377,6 +377,43 @@
     .modal-campos { grid-template-columns: 1fr; }
   }
 
+  /* ===== CARTÃO KPI CLICÁVEL ===== */
+  .kpi-clicavel { cursor: pointer; transition: background .14s, border-color .14s, transform .14s; }
+  .kpi-clicavel:hover {
+    background: var(--bg3); border-color: rgba(59,130,246,.4); transform: translateY(-2px);
+  }
+  .kpi-clicavel::before {
+    content: '\21F2'; position: absolute; right: .6rem; bottom: .5rem;
+    font-size: .8rem; color: var(--texto-muted); opacity: 0; transition: opacity .14s;
+  }
+  .kpi-clicavel:hover::before { opacity: .85; }
+
+  /* ===== TABELA DENTRO DO MODAL ===== */
+  .modal-tabela-wrap { overflow-x: auto; border: 1px solid var(--borda); border-radius: 10px; }
+  .modal-tabela { width: 100%; border-collapse: collapse; font-size: .81rem; min-width: 420px; }
+  .modal-tabela thead th {
+    position: sticky; top: 0; background: var(--bg3);
+    text-align: left; padding: .55rem .7rem; font-size: .64rem;
+    text-transform: uppercase; letter-spacing: .06em; color: var(--texto-muted);
+    font-weight: 700; white-space: nowrap; border-bottom: 1px solid var(--borda);
+  }
+  .modal-tabela thead th.dir, .modal-tabela td.dir { text-align: right; }
+  .modal-tabela tbody td {
+    padding: .5rem .7rem; border-bottom: 1px solid rgba(30,45,74,.5);
+    vertical-align: top; line-height: 1.45;
+  }
+  .modal-tabela tbody tr:last-child td { border-bottom: none; }
+  .modal-tabela tbody tr:hover { background: rgba(255,255,255,.03); }
+  .modal-lista-nota { font-size: .74rem; color: var(--texto-muted); margin-top: .55rem; }
+  .modal-lista-total {
+    margin-top: .8rem; padding: .7rem .9rem; border-radius: 9px;
+    background: var(--bg3); border: 1px solid var(--borda);
+    font-size: .85rem; font-weight: 600;
+  }
+  .modal-lista-total b { color: var(--azul-claro); }
+  .resumo-item.item-clicavel { cursor: pointer; transition: background .14s, border-color .14s; }
+  .resumo-item.item-clicavel:hover { background: var(--bg4); border-color: rgba(59,130,246,.4); }
+
 </style>
 </head>
 <body>
@@ -870,6 +907,79 @@ function ligarBusca(id, aoDigitar) {
   limpar.addEventListener('click', () => { el.value = ''; el.focus(); disparar(); });
 }
 
+/* =========================================================================
+   LISTA DENTRO DO MODAL
+   Para quando o clique num cartão precisa mostrar "quais registros estão
+   por trás deste número".
+   ========================================================================= */
+/**
+ * abrirLista({ titulo, sub, colunas:[{r,chave,alinha,formata}], linhas:[obj],
+ *              vazio, rodape, notas:[{tipo,html}], limite })
+ */
+function abrirLista(cfg) {
+  const cols = cfg.colunas || [];
+  const linhas = cfg.linhas || [];
+  const limite = cfg.limite || 300;
+  const vis = linhas.slice(0, limite);
+
+  let html = '';
+  if (cfg.resumo && cfg.resumo.length) {
+    html += '<div class="modal-campos" style="margin-bottom:1rem">' +
+      cfg.resumo.map(c => '<div class="modal-campo">' +
+        '<div class="modal-rotulo">' + c.r + '</div>' +
+        '<div class="modal-valor ' + (c.classe || '') + '">' + c.v + '</div></div>').join('') +
+      '</div>';
+  }
+
+  if (!vis.length) {
+    html += '<div class="obs-vazio">' + (cfg.vazio || 'Nenhum registro para exibir.') + '</div>';
+  } else {
+    html += '<div class="modal-tabela-wrap"><table class="modal-tabela"><thead><tr>' +
+      cols.map(c => '<th' + (c.alinha === 'dir' ? ' class="dir"' : '') + '>' + c.r + '</th>').join('') +
+      '</tr></thead><tbody>' +
+      vis.map(l => '<tr>' + cols.map(c => {
+        const bruto = l[c.chave];
+        const v = c.formata ? c.formata(bruto, l) : (bruto === null || bruto === undefined || bruto === '' ? '—' : esc(bruto));
+        return '<td' + (c.alinha === 'dir' ? ' class="dir"' : '') + '>' + v + '</td>';
+      }).join('') + '</tr>').join('') +
+      '</tbody></table></div>';
+    if (linhas.length > vis.length) {
+      html += '<div class="modal-lista-nota">Exibindo os ' + vis.length + ' primeiros de ' +
+        linhas.length + ' registros.</div>';
+    } else {
+      html += '<div class="modal-lista-nota">' + linhas.length + ' registro' +
+        (linhas.length === 1 ? '' : 's') + '.</div>';
+    }
+  }
+
+  if (cfg.rodape) html += '<div class="modal-lista-total">' + cfg.rodape + '</div>';
+  (cfg.notas || []).forEach(n => {
+    if (n && n.html) html += '<div class="modal-nota ' + (n.tipo || '') + '">' + n.html + '</div>';
+  });
+
+  const f = document.getElementById('modalFundo');
+  document.getElementById('modalTitulo').innerHTML = cfg.titulo || '';
+  document.getElementById('modalSub').innerHTML = cfg.sub || '';
+  document.getElementById('modalCorpo').innerHTML = html;
+  f.classList.remove('oculto');
+  requestAnimationFrame(() => f.classList.add('aberto'));
+}
+
+/** Marca um cartão KPI como clicável e liga ao detalhamento. */
+function kpiClicavel(indice, aoAbrir) {
+  const cartoes = document.querySelectorAll('#kpis .kpi');
+  const el = cartoes[indice];
+  if (!el) return;
+  el.classList.add('kpi-clicavel');
+  el.title = 'Clique para ver os registros';
+  el.addEventListener('click', aoAbrir);
+}
+
+/** Liga vários cartões de uma vez: mapa {indice: função}. */
+function ligarKPIs(mapa) {
+  Object.keys(mapa).forEach(i => kpiClicavel(Number(i), mapa[i]));
+}
+
 
 /* =========================================================================
    APLICAÇÃO
@@ -1097,6 +1207,8 @@ function renderKPIs(b, a) {
     cartaoKPI('Sem Responsável', num(a.semResponsavel), a.semResponsavel > 0 ? 'vermelho' : 'verde',
       '<span>diligências sem executor atribuído</span>')
   ].join('');
+
+  ligarDetalheKPIs(b, a);
 }
 
 function renderBacklog(b, a) {
@@ -1447,6 +1559,74 @@ document.getElementById('filtrosFila').addEventListener('click', ev => {
 
 
 /* =========================================================================
+   DETALHE DOS CARTÕES
+   ========================================================================= */
+const COL_DIL = [
+  { r: 'Processo', chave: 'processo', formata: (v, l) => '<b>' + esc(v || '—') + '</b>' +
+      '<br><span style="color:var(--texto-muted);font-size:.72rem">' + esc(l.tipo) + '</span>' },
+  { r: 'Vara / Comarca', chave: 'vara', formata: (v, l) => esc(v) +
+      '<br><span style="color:var(--texto-muted);font-size:.72rem">' + esc(l.comarca) + ' · ' + esc(l.tribunal) + '</span>' },
+  { r: 'Responsável', chave: 'responsavel' },
+  { r: 'Idade', chave: 'idade', alinha: 'dir', formata: v => v === null ? '—' :
+      '<span class="tag-pct ' + (v > 15 ? 'vermelho' : v > 7 ? 'amarelo' : 'neutro') + '">' + v + ' d</span>' },
+  { r: 'Situação', chave: 'aberta', formata: (v, l) => !v
+      ? '<span class="tag-pct verde">Cumprida</span>'
+      : '<span class="tag-pct ' + (l.status === 'Solicitada' ? 'amarelo' : 'vermelho') + '">' + esc(l.status) + '</span>' }
+];
+
+function listaDil(titulo, linhas, nota, tipo) {
+  abrirLista({
+    titulo,
+    sub: linhas.length + ' diligência' + (linhas.length === 1 ? '' : 's'),
+    colunas: COL_DIL,
+    linhas: [...linhas].sort((a, b) => (b.idade === null ? -1 : b.idade) - (a.idade === null ? -1 : a.idade)),
+    vazio: 'Nenhuma diligência nesta condição.',
+    notas: nota ? [{ tipo: tipo || '', html: nota }] : []
+  });
+}
+
+function ligarDetalheKPIs(b, a) {
+  const it = b.itens;
+  ligarKPIs({
+    0: () => listaDil('Diligências Lançadas', it,
+      'Todas as diligências registradas, em <b>' + num(a.processos) + '</b> processos distintos.'),
+    1: () => listaDil('Diligências em Aberto', it.filter(x => x.aberta),
+      '<b>' + num(a.pendentes) + '</b> pendentes (ainda não acionadas) e <b>' + num(a.solicitadas) +
+      '</b> já solicitadas, aguardando resposta do juízo.', 'alerta'),
+    2: () => listaDil('Diligências Cumpridas', it.filter(x => !x.aberta),
+      'Taxa de cumprimento de <b>' + pct1(a.taxaCumprimento) + '</b> sobre o total lançado.'),
+    3: () => listaDil('Backlog por Idade',
+      it.filter(x => x.aberta && x.idade !== null).sort((x, y) => y.idade - x.idade),
+      'Ordenadas da mais antiga para a mais recente. Idade média do backlog: <b>' +
+      (a.idadeMedia === null ? '—' : a.idadeMedia.toFixed(1).replace('.', ',') + ' dias') + '</b>.', 'alerta'),
+    4: () => listaDil('Abertas há mais de 7 dias',
+      it.filter(x => x.aberta && x.idade !== null && x.idade > 7),
+      '<b>' + num(a.venc15) + '</b> destas já passam de 15 dias. Cada dia aqui é processo parado.', 'critico'),
+    5: () => listaDil('Com Contato Registrado', it.filter(x => x.emailEnviado || x.servidor || x.historico),
+      'Diligências com e-mail enviado, servidor atendido ou histórico anotado. As demais <b>não têm nenhuma tentativa registrada</b>.'),
+    6: () => abrirLista({
+      titulo: 'Valores a Receber',
+      sub: b.valores.length + ' solicitações · ' + num(a.valAbertas) + ' em aberto',
+      colunas: [
+        { r: 'Processo', chave: 'processo', formata: v => '<b>' + esc(v) + '</b>' },
+        { r: 'Diligência', chave: 'diligencia' },
+        { r: 'Solicitada', chave: 'solicitada', formata: v => v ? v.toLocaleDateString('pt-BR') : '—' },
+        { r: 'Responsável', chave: 'responsavel' },
+        { r: 'Situação', chave: 'finalizada', formata: v => v
+            ? '<span class="tag-pct verde">Finalizada</span>'
+            : '<span class="tag-pct vermelho">Em aberto</span>' }
+      ],
+      linhas: [...b.valores].sort((x, y) => (x.finalizada ? 1 : 0) - (y.finalizada ? 1 : 0)),
+      rodape: '<b>' + num(a.valAbertas) + '</b> solicitações ainda sem confirmação de liberação',
+      notas: [{ tipo: 'critico', html: 'É a fila com <b>efeito mais direto no caixa</b>: cada item é alvará ou pagamento que já poderia ter sido creditado.' }]
+    }),
+    7: () => listaDil('Sem Responsável Atribuído', it.filter(x => x.responsavel === 'Não atribuída'),
+      'Sem dono, ninguém cobra e ninguém responde — é o padrão de tarefa que nunca sai.', 'critico')
+  });
+}
+
+
+/* =========================================================================
    CICLO / AUTENTICAÇÃO
    ========================================================================= */
 let DADOS = null;
@@ -1455,8 +1635,11 @@ async function carregarDados() {
   const erroEl = document.getElementById('erroBox');
   try {
     DADOS = await buscarTudo();
-    document.getElementById('linkPlanilha').href =
-      'https://docs.google.com/spreadsheets/d/' + CONFIG.SHEET_ID + '/edit';
+    const idLink = CONFIG.SHEET_ID ||
+      (CONFIG.SHEETS ? Object.values(CONFIG.SHEETS)[0] : null);
+    const linkEl = document.getElementById('linkPlanilha');
+    if (idLink) linkEl.href = 'https://docs.google.com/spreadsheets/d/' + idLink + '/edit';
+    else linkEl.style.display = 'none';
     document.getElementById('carregando').classList.add('oculto');
     document.getElementById('conteudo').classList.remove('oculto');
     erroEl.classList.add('oculto');
@@ -1480,8 +1663,9 @@ setInterval(() => { if (DADOS) carregarDados(); }, CONFIG.AUTO_REFRESH_MIN * 60 
 const CHAVE_SESSAO = 'dashboard-diligencias_sessao';
 
 function entrarNoPainel(segredo, guardar) {
-  CONFIG.SHEET_ID = segredo.SHEET_ID;
-  CONFIG.GOOGLE_API_KEY = segredo.GOOGLE_API_KEY;
+  // Copia tudo o que o cofre trouxer: um painel pode guardar uma planilha
+  // (SHEET_ID) ou várias (SHEETS), além da chave da API.
+  Object.assign(CONFIG, segredo);
   if (guardar) { try { sessionStorage.setItem(CHAVE_SESSAO, JSON.stringify(segredo)); } catch (e) {} }
   document.getElementById('loginOverlay').classList.add('oculto');
   document.getElementById('cabecalho').classList.remove('oculto');
