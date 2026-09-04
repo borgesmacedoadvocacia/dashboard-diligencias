@@ -543,7 +543,7 @@
 
   <section class="secao">
     <div class="secao-titulo">Ranking de Execução</div>
-    <div class="secao-sub">Uma linha por responsável pela diligência. <b>Acionamento</b> depende da pessoa; <b>cumprimento</b> depende também de o cartório responder — por isso as duas taxas aparecem separadas.</div>
+    <div class="secao-sub">Ordenado pela <b>taxa de cumprimento</b>. Acionamento depende da pessoa; cumprimento depende também de o cartório responder — por isso as duas taxas aparecem separadas.</div>
     <div class="card">
       <div class="grafico-box medio"><canvas id="grafRanking"></canvas></div>
     </div>
@@ -1338,7 +1338,13 @@ function agregar(b) {
     idadeMedia: media(r.idades),
     cicloMedio: media(r.ciclos),
     participacao: a.total ? r.total / a.total * 100 : 0
-  })).sort((x, y) => y.total - x.total);
+  })).sort((x, y) => {
+    /* Ranking por taxa de cumprimento. Empate — comum no 0% — é desfeito
+       pelo volume: entre duas pessoas que não fecharam nada, quem carrega
+       mais diligências pesa mais. */
+    const d = (y.taxaCumprimento || 0) - (x.taxaCumprimento || 0);
+    return d !== 0 ? d : y.total - x.total;
+  });
 
   /* Histórico de contato com o cartório, achatado numa linha por contato. */
   a.contatos = [];
@@ -1607,11 +1613,17 @@ function renderRanking(b, a) {
     }
   });
 
+  /* Só um pode ser o melhor. O líder é o primeiro com volume suficiente para
+     a taxa significar alguma coisa — senão bastaria uma diligência cumprida
+     para encabeçar o ranking. */
+  const lider = r.find(x => x.nome !== 'Não atribuída' && x.total >= 10 && x.cumpridas > 0);
+
   const leitura = x => {
     if (x.nome === 'Não atribuída') return 'sem executor — ninguém responde por elas';
-    if (x.total < 10) return 'volume baixo para leitura conclusiva';
+    if (x.total < 10) return 'volume baixo para a taxa significar alguma coisa';
+    if (x === lider) return 'melhor taxa de cumprimento da equipe';
     if (x.taxaAcionamento < 50) return 'a maior parte da carteira dela ainda não foi acionada';
-    if (x.taxaCumprimento >= 10) return 'aciona e consegue fechar — melhor conversão da equipe';
+    if (x.cumpridas === 0) return 'nada fechado ainda no período';
     if (x.taxaAcionamento >= 90) return 'aciona quase tudo; o que trava é a resposta do cartório';
     return 'aciona a maior parte, mas pouca coisa chega ao cumprimento';
   };
