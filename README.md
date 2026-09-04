@@ -41,3 +41,40 @@ cofre neste painel.
   tem o cabeçalho repetido algumas vezes).
 - Idade e ciclo são calculados sobre a data do dia, então o painel envelhece sozinho.
 - Atualização automática a cada 5 minutos. Arquivo único `index.html`, sem build.
+
+## Atualização de setembro/2026
+
+### Os quatro status reais
+A planilha passou a usar **quatro** situações, e o painel classificava só três —
+`Standy By` (100 diligências, 38% da base) caía silenciosamente em "pendente".
+Agora cada uma aparece por si:
+
+| Status | O que significa |
+|---|---|
+| Pendente | ainda não acionada junto à vara |
+| Solicitada ou aguardando cumprimento | já acionada, aguardando o cartório cumprir |
+| Standy By | acionada e em espera — o juízo já respondeu que vai cumprir |
+| Cumprida | diligência efetivamente concluída |
+
+"Standy By" é mantido com a grafia da planilha, para que quem procurar o termo
+lá encontre o mesmo aqui.
+
+### Acionamento × cumprimento
+Duas taxas, porque medem coisas diferentes: **acionamento** depende da pessoa;
+**cumprimento** depende também de o cartório responder. Medir só o cumprimento
+puniria quem trabalhou e está esperando resposta.
+
+### Ranking de execução
+Uma linha por responsável pela diligência (coluna K), com volume, participação,
+as duas taxas, idade média do backlog e a leitura de cada caso.
+
+### Histórico de contato com o cartório
+A coluna S é texto livre com padrão reconhecível (`28/08: email enviado`). O
+painel extrai **data e canal** de cada contato sem descartar o texto original,
+e aceita as variações que aparecem na prática — inclusive `27;08`, erro de
+digitação frequente. Um contato por linha, do mais recente para o mais antigo,
+clicável até a diligência.
+
+### Todas as colunas
+A Fila de Trabalho reproduz as **19 colunas** da planilha, na mesma ordem em que
+estão lá — quem cruzar os dois lado a lado encontra o mesmo.

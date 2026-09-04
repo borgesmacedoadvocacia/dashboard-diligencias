@@ -542,6 +542,52 @@
   </section>
 
   <section class="secao">
+    <div class="secao-titulo">Ranking de Execução</div>
+    <div class="secao-sub">Uma linha por responsável pela diligência. <b>Acionamento</b> depende da pessoa; <b>cumprimento</b> depende também de o cartório responder — por isso as duas taxas aparecem separadas.</div>
+    <div class="card">
+      <div class="grafico-box medio"><canvas id="grafRanking"></canvas></div>
+    </div>
+    <div class="card" style="margin-top:1rem">
+      <div class="tabela-wrap">
+        <table id="tabelaRanking">
+          <thead><tr>
+            <th>Responsável</th><th>Diligências</th><th>Participação</th>
+            <th>Acionadas</th><th>Cumpridas</th><th>Taxa de cumprimento</th>
+            <th>Idade média</th><th>Leitura</th>
+          </tr></thead>
+          <tbody id="corpoRanking"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="secao">
+    <div class="secao-titulo">Histórico de Contato com o Cartório</div>
+    <div class="secao-sub" id="subHistorico">—</div>
+    <div class="resumo-grid" id="resumoHistorico"></div>
+    <div class="grid-2" style="margin-top:1rem">
+      <div class="card">
+        <div class="secao-sub" style="margin:0 0 .6rem 0">Por canal de contato</div>
+        <div class="grafico-box medio"><canvas id="grafCanal"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="secao-sub" style="margin:0 0 .6rem 0">Contatos por dia</div>
+        <div class="grafico-box medio"><canvas id="grafContatoDia"></canvas></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:1rem">
+      <div class="secao-sub" style="margin:0 0 .6rem 0">Últimos contatos registrados — <b>clique para abrir a diligência</b></div>
+      <div class="tabela-wrap">
+        <table id="tabelaContatos">
+          <thead><tr><th>Data</th><th>Canal</th><th>Processo</th><th>Vara / Comarca</th><th>O que ficou anotado</th></tr></thead>
+          <tbody id="corpoContatos"></tbody>
+        </table>
+      </div>
+      <div class="secao-sub" id="notaContatos" style="margin:.6rem 0 0 0"></div>
+    </div>
+  </section>
+
+  <section class="secao">
     <div class="secao-titulo">Valores a Receber</div>
     <div class="secao-sub">Diligências específicas de cobrança e liberação de valores — a fila que tem impacto direto em caixa.</div>
     <div class="resumo-grid" id="resumoValores"></div>
@@ -563,15 +609,23 @@
         <span id="buscaCampo"></span>
         <button type="button" class="chip ativo" data-f="abertas">Em aberto</button>
         <button type="button" class="chip" data-f="pendente">Pendentes</button>
-        <button type="button" class="chip" data-f="solicitada">Solicitadas</button>
+        <button type="button" class="chip" data-f="solicitada">Solicitadas / aguardando</button>
+        <button type="button" class="chip" data-f="standby">Standy By</button>
         <button type="button" class="chip" data-f="cumprida">Cumpridas</button>
+        <button type="button" class="chip" data-f="semcontato">Sem contato registrado</button>
         <button type="button" class="chip" data-f="velhas">Mais de 7 dias</button>
         <button type="button" class="chip" data-f="todos">Todas</button>
         <span class="dica-clique">&#128065; clique em uma linha para abrir a diligência</span>
       </div>
       <div class="tabela-wrap">
         <table id="tabelaFila">
-          <thead><tr><th>Processo</th><th>Diligência</th><th>Vara / Comarca</th><th>Lançada em</th><th>Idade</th><th>Situação</th></tr></thead>
+          <thead><tr>
+            <th>Processo</th><th>Tipo</th><th>Diligência</th><th>Vara</th><th>Comarca</th>
+            <th>Tribunal</th><th>Grau</th><th>Responsável</th><th>Lançada por</th>
+            <th>Lançamento</th><th>Realização</th><th>Cumprimento</th><th>Idade</th>
+            <th>Status</th><th>Turno</th><th>E-mail enviado</th><th>Servidor</th>
+            <th>Balcão</th><th>Histórico de contato</th>
+          </tr></thead>
           <tbody id="corpoFila"></tbody>
         </table>
       </div>
@@ -600,7 +654,7 @@
    decifragem falha e a página não sabe qual planilha ler.
    ========================================================================= */
 const COFRES = [
-  /* Administração */
+/* Administração */
   {"v":1,"it":310000,"salt":"SAQD0nNEk+lIoPNEHDs/8g==","iv":"nj9MQq4J/L5PYVWK","ct":"jKmzpQA11pFdgNLwa6Lv63bK3GgKTbgUJiFuUaVBvTft29XWxmjpDpQhD+691ys1BQIItPWfrQYiwj8f1knA2x2zUGokvAXeQ0SbY6NaEL2WnR7B+VEfmyQrqS+5NqFN2ksQY3KtkS09hSysgzvt8Im1jW6hgXo1PdK3dRd1JsP2NfaYPFc="},
   /* Lideranças */
   {"v":1,"it":310000,"salt":"nACw99//Tg6tj/pKwOpJoQ==","iv":"fHC9br19FRAUgff5","ct":"WPUhLQFoNA5MfmQJdt0HNtigC8wUlKyBlGbWeA7I4bFAXPWg4Qcj5f0xIlLRcZ1LjGrM8oBJOkOeHtTDFUHHAKCSzlHm/AqXP1Bzgrq1PmbG7Hfq86lJAl7hvFlYji0FIaOZNqR8NJ6bSo/sqFTQfP7TfVMhUgyNyY991PdD25agF6ENGbY="}
@@ -1007,7 +1061,10 @@ function fichaDiligencia(x) {
       { titulo: 'A diligência', campos: [
         { r: 'O que foi pedido', v: esc(x.diligencia || '—'), largo: true, classe: 'texto' },
         { r: 'Tipo', v: esc(x.tipo) },
-        { r: 'Situação', v: '<span class="tag-pct ' + (x.status === 'Cumprida' ? 'verde' : x.status === 'Solicitada' ? 'amarelo' : 'vermelho') + '">' + x.status + '</span>' },
+        { r: 'Situação', v: '<span class="tag-pct ' + (CLASSE_STATUS[x.status] || 'neutro') + '">' +
+            esc(ROTULO_STATUS[x.status] || x.status) + '</span>' +
+            '<br><span style="color:var(--texto-muted);font-size:.74rem">' +
+            (EXPLICA_STATUS[x.status] || '') + '</span>', largo: true },
         { r: 'Idade', v: x.idade === null ? '—'
             : '<span class="tag-pct ' + (x.idade > 15 ? 'vermelho' : x.idade > 7 ? 'amarelo' : 'neutro') + '">' + x.idade + ' dia(s)</span>' },
         { r: 'Responsável pela execução', v: esc(x.responsavel) },
@@ -1029,10 +1086,19 @@ function fichaDiligencia(x) {
       ].filter(Boolean) },
       { titulo: 'Contato com o cartório', campos: [
         { r: 'Canais usados', v: canais.length ? canais.join(' · ') : '<span class="tag-pct vermelho">nenhuma tentativa registrada</span>', largo: true },
+        { r: 'E-mail enviado', v: x.emailEnviado
+            ? '<span class="tag-pct verde">Sim</span>' : '<span class="tag-pct vermelho">Não</span>' },
         x.servidor ? { r: 'Servidor que atendeu', v: esc(x.servidor) } : null,
-        x.historico ? { r: 'Histórico de contato', v: esc(x.historico), largo: true, classe: 'texto' } : null
-      ].filter(Boolean) }
-    ],
+        x.balcao ? { r: 'Link do balcão virtual', v: esc(x.balcao), largo: true, classe: 'texto' } : null
+      ].filter(Boolean) },
+      /* O histórico é a coluna mais rica da planilha: em vez de despejar o
+         texto cru, cada contato vira uma linha com data e canal. */
+      x.contatos.length ? { titulo: 'Histórico de contato com o cartório', campos:
+        x.contatos.map(c => ({
+          r: (c.data ? c.data.toLocaleDateString('pt-BR') : 'sem data') + ' · ' + c.canal,
+          v: esc(c.texto), largo: true, classe: 'texto'
+        })) } : null
+    ].filter(Boolean),
     notas: [
       x.aberta && x.idade !== null && x.idade > 15 ? { tipo: 'critico', html:
         'Aberta há <b>' + x.idade + ' dias</b>. Processo parado nesse intervalo — e, se envolver alvará, é caixa que não entra.' } : null,
@@ -1082,13 +1148,79 @@ async function buscarTudo() {
 function normTxt(s) {
   return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
 }
-/** Pendente / Solicitada / Cumprida. */
+/* Os quatro status que a planilha usa hoje, na ordem do fluxo de trabalho.
+   "Standy By" é como a planilha escreve — mantido como está para que quem
+   procurar o termo lá encontre o mesmo aqui. */
+const STATUS = ['Pendente', 'Solicitada', 'Standy By', 'Cumprida', 'Não informado'];
+const COR_STATUS = {
+  'Pendente':      COR_VERMELHO,
+  'Solicitada':    COR_AMARELO,
+  'Standy By':     COR_CIANO,
+  'Cumprida':      COR_VERDE,
+  'Não informado': COR_MUTED
+};
+const CLASSE_STATUS = {
+  'Pendente': 'vermelho', 'Solicitada': 'amarelo',
+  'Standy By': 'neutro', 'Cumprida': 'verde', 'Não informado': 'neutro'
+};
+const ROTULO_STATUS = {
+  'Pendente':   'Pendente',
+  'Solicitada': 'Solicitada ou aguardando cumprimento',
+  'Standy By':  'Standy By',
+  'Cumprida':   'Cumprida'
+};
+const EXPLICA_STATUS = {
+  'Pendente':   'ainda não acionada junto à vara',
+  'Solicitada': 'já acionada, aguardando o cartório cumprir',
+  'Standy By':  'acionada e em espera — o juízo já respondeu que vai cumprir',
+  'Cumprida':   'diligência efetivamente concluída'
+};
+
 function statusDilig(v) {
   const t = normTxt(v);
   if (t.startsWith('cumprid')) return 'Cumprida';
+  if (t.startsWith('stand')) return 'Standy By';        // "Standy By", "Stand By"
   if (t.startsWith('solicitada') || t.includes('aguardando')) return 'Solicitada';
   if (t.startsWith('pendente')) return 'Pendente';
   return 'Não informado';
+}
+
+/* O histórico é texto livre, mas segue um padrão reconhecível:
+   "28/08: email enviado", "03/09: atendimento pelo balcão virtual, estão
+   seguindo a ordem cronológica". Vários contatos podem vir separados por
+   quebra de linha ou por ponto-e-vírgula. Aqui se extrai o que dá para
+   extrair — data e canal — sem descartar o texto original. */
+const CANAIS = [
+  ['Balcão virtual', /balc[ãa]o|teams|lifesize|videoconfer/i],
+  ['E-mail',         /e-?mail|email/i],
+  ['Telefone',       /telefone|liga[çc][ãa]o|ligamos|ligei/i],
+  ['Presencial',     /presencial|balc[ãa]o f[íi]sico|fui ao|comparec/i],
+  ['Peticionamento', /peti[çc][ãa]o|protocol/i]
+];
+
+function lerHistorico(txt) {
+  const bruto = String(txt || '').trim();
+  if (!bruto) return [];
+  return bruto.split(/[\r\n]+|;(?!\s*\d{2}\/)/)
+    .map(p => p.trim()).filter(Boolean)
+    .map(parte => {
+      /* Aceita 28/08, 27;08 (erro de digitação frequente) e 28/08/2026 */
+      const m = /^(\d{1,2})[\/;.-](\d{1,2})(?:[\/;.-](\d{2,4}))?\s*[:\-]?\s*(.*)$/s.exec(parte);
+      let data = null, texto = parte;
+      if (m) {
+        const dia = Number(m[1]), mes = Number(m[2]) - 1;
+        let ano = m[3] ? Number(m[3]) : null;
+        if (ano !== null && ano < 100) ano += 2000;
+        if (mes >= 0 && mes <= 11 && dia >= 1 && dia <= 31) {
+          /* Sem ano anotado, assume o ano corrente do painel. */
+          const d = new Date(ano === null ? new Date().getFullYear() : ano, mes, dia);
+          if (!isNaN(d)) { d.setHours(0, 0, 0, 0); data = d; }
+          texto = (m[4] || '').trim() || parte;
+        }
+      }
+      const canal = (CANAIS.find(([, re]) => re.test(texto)) || [null])[0];
+      return { data, texto, canal: canal || 'Não identificado' };
+    });
 }
 
 function montarBase(dados, hoje) {
@@ -1118,8 +1250,13 @@ function montarBase(dados, hoje) {
       balcao: campo(l, c, 'LINK DO BALCÃO VIRTUAL', 'R'),
       historico: campo(l, c, 'HISTÓRICO DE CONTATO COM O CARTÓRIO', 'S'),
       aberta: st !== 'Cumprida',
+      /* Acionada = já saiu da fila inicial. Separar isso de "cumprida" é o que
+         permite distinguir quem não trabalhou a diligência de quem trabalhou e
+         está esperando o cartório. */
+      acionada: st === 'Solicitada' || st === 'Standy By' || st === 'Cumprida',
       idade: lanc ? diasEntre(lanc, hoje) : null,
-      cicloCumprimento: lanc && cumpr ? diasEntre(lanc, cumpr) : null
+      cicloCumprimento: lanc && cumpr ? diasEntre(lanc, cumpr) : null,
+      contatos: lerHistorico(campo(l, c, 'HISTÓRICO DE CONTATO COM O CARTÓRIO', 'S'))
     };
   }).filter(Boolean);
 
@@ -1156,7 +1293,10 @@ function agregar(b) {
     comContato: it.filter(x => x.emailEnviado || x.servidor || x.historico).length,
     emailEnviado: it.filter(x => x.emailEnviado).length,
     comBalcao: it.filter(x => x.balcao && /^http/i.test(x.balcao)).length,
-    semResponsavel: it.filter(x => x.responsavel === 'Não atribuída').length
+    semResponsavel: it.filter(x => x.responsavel === 'Não atribuída').length,
+    standby: it.filter(x => x.status === 'Standy By').length,
+    acionadas: it.filter(x => x.acionada).length,
+    semStatus: it.filter(x => x.status === 'Não informado').length
   };
   a.taxaCumprimento = a.total ? a.cumpridas / a.total * 100 : null;
   const idades = it.filter(x => x.aberta && x.idade !== null && x.idade >= 0).map(x => x.idade);
@@ -1166,6 +1306,47 @@ function agregar(b) {
   a.venc15 = idades.filter(x => x > 15).length;
   const ciclos = it.map(x => x.cicloCumprimento).filter(x => x !== null && x >= 0 && x < 365);
   a.cicloMedio = media(ciclos);
+
+  a.taxaAcionamento = a.total ? a.acionadas / a.total * 100 : null;
+
+  /* Ranking de execução: uma linha por responsável pela diligência (coluna K).
+     Duas taxas, porque medem coisas diferentes — acionamento é o que depende
+     da pessoa; cumprimento depende também do cartório responder. */
+  const porResp = {};
+  for (const x of it) {
+    const k = x.responsavel;
+    (porResp[k] = porResp[k] || { nome: k, total: 0, cumpridas: 0, acionadas: 0,
+                                  pendentes: 0, standby: 0, solicitadas: 0,
+                                  comContato: 0, idades: [], ciclos: [] });
+    const r = porResp[k];
+    r.total++;
+    if (x.status === 'Cumprida') r.cumpridas++;
+    if (x.status === 'Pendente') r.pendentes++;
+    if (x.status === 'Standy By') r.standby++;
+    if (x.status === 'Solicitada') r.solicitadas++;
+    if (x.acionada) r.acionadas++;
+    if (x.emailEnviado || x.servidor || x.contatos.length) r.comContato++;
+    if (x.aberta && x.idade !== null && x.idade >= 0) r.idades.push(x.idade);
+    if (x.cicloCumprimento !== null && x.cicloCumprimento >= 0 && x.cicloCumprimento < 365)
+      r.ciclos.push(x.cicloCumprimento);
+  }
+  a.ranking = Object.values(porResp).map(r => ({
+    ...r,
+    taxaCumprimento: r.total ? r.cumpridas / r.total * 100 : null,
+    taxaAcionamento: r.total ? r.acionadas / r.total * 100 : null,
+    taxaContato: r.total ? r.comContato / r.total * 100 : null,
+    idadeMedia: media(r.idades),
+    cicloMedio: media(r.ciclos),
+    participacao: a.total ? r.total / a.total * 100 : 0
+  })).sort((x, y) => y.total - x.total);
+
+  /* Histórico de contato com o cartório, achatado numa linha por contato. */
+  a.contatos = [];
+  for (const x of it) for (const c of x.contatos) a.contatos.push({ ...c, dil: x });
+  a.contatos.sort((p, q) => (q.data ? q.data.getTime() : 0) - (p.data ? p.data.getTime() : 0));
+  a.comHistorico = it.filter(x => x.contatos.length).length;
+  a.porCanal = contar(a.contatos, c => c.canal);
+  a.ultimoContato = a.contatos.find(c => c.data) || null;
 
   a.valTotal = b.valores.length;
   a.valFinalizadas = b.valores.filter(x => x.finalizada).length;
@@ -1213,15 +1394,18 @@ function renderKPIs(b, a) {
 
 function renderBacklog(b, a) {
   document.getElementById('resumoBacklog').innerHTML = [
-    itemResumo('Pendentes', num(a.pendentes), 'ainda não foram acionadas junto à vara', a.pendentes ? COR_VERMELHO : COR_VERDE),
-    itemResumo('Solicitadas / aguardando', num(a.solicitadas), 'já acionadas, aguardando resposta do juízo', COR_AMARELO),
+    itemResumo('Pendentes', num(a.pendentes), EXPLICA_STATUS['Pendente'], a.pendentes ? COR_VERMELHO : COR_VERDE),
+    itemResumo('Solicitadas / aguardando', num(a.solicitadas), EXPLICA_STATUS['Solicitada'], COR_AMARELO),
+    itemResumo('Standy By', num(a.standby), EXPLICA_STATUS['Standy By'], COR_CIANO),
     itemResumo('Cumpridas', num(a.cumpridas), pct1(a.taxaCumprimento) + ' do total lançado', a.cumpridas ? COR_VERDE : COR_MUTED),
+    itemResumo('Já acionadas', pct1(a.taxaAcionamento),
+      num(a.acionadas) + ' saíram da fila inicial', a.taxaAcionamento >= 70 ? COR_VERDE : COR_AMARELO),
     itemResumo('Ciclo de cumprimento', a.cicloMedio === null ? '—' : a.cicloMedio.toFixed(1).replace('.', ',') + ' d',
       'do lançamento até o efetivo cumprimento')
   ].join('');
 
-  const sts = ['Pendente', 'Solicitada', 'Cumprida', 'Não informado'];
-  const cores = { 'Pendente': COR_VERMELHO, 'Solicitada': COR_AMARELO, 'Cumprida': COR_VERDE, 'Não informado': COR_MUTED };
+  const sts = STATUS.filter(st => b.itens.some(x => x.status === st));
+  const cores = COR_STATUS;
   const vals = sts.map(s => b.itens.filter(x => x.status === s).length);
   destruir('status');
   graficos.status = new Chart(document.getElementById('grafStatus'), {
@@ -1397,6 +1581,120 @@ function renderCanal(b, a) {
   });
 }
 
+/* ---------- Ranking de execução ---------- */
+function renderRanking(b, a) {
+  const r = a.ranking;
+  destruir('ranking');
+  graficos.ranking = new Chart(document.getElementById('grafRanking'), {
+    type: 'bar',
+    data: {
+      labels: r.map(x => x.nome),
+      datasets: [
+        { label: 'Pendentes',   data: r.map(x => x.pendentes),   backgroundColor: COR_VERMELHO, borderRadius: 3, stack: 'r' },
+        { label: 'Solicitadas', data: r.map(x => x.solicitadas), backgroundColor: COR_AMARELO,  borderRadius: 3, stack: 'r' },
+        { label: 'Standy By',   data: r.map(x => x.standby),     backgroundColor: COR_CIANO,    borderRadius: 3, stack: 'r' },
+        { label: 'Cumpridas',   data: r.map(x => x.cumpridas),   backgroundColor: COR_VERDE,    borderRadius: 3, stack: 'r' }
+      ]
+    },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      scales: { x: { stacked: true, grid: { color: COR_BORDA } }, y: { stacked: true, grid: { display: false } } },
+      plugins: { tooltip: { callbacks: {
+        afterBody: ctx => {
+          const x = r[ctx[0].dataIndex];
+          return 'Acionamento: ' + pct1(x.taxaAcionamento) + ' · Cumprimento: ' + pct1(x.taxaCumprimento);
+        } } } }
+    }
+  });
+
+  const leitura = x => {
+    if (x.nome === 'Não atribuída') return 'sem executor — ninguém responde por elas';
+    if (x.total < 10) return 'volume baixo para leitura conclusiva';
+    if (x.taxaAcionamento < 50) return 'a maior parte da carteira dela ainda não foi acionada';
+    if (x.taxaCumprimento >= 10) return 'aciona e consegue fechar — melhor conversão da equipe';
+    if (x.taxaAcionamento >= 90) return 'aciona quase tudo; o que trava é a resposta do cartório';
+    return 'aciona a maior parte, mas pouca coisa chega ao cumprimento';
+  };
+
+  document.getElementById('corpoRanking').innerHTML = r.map((x, i) =>
+    '<tr><td><b>' + (i + 1) + 'º ' + esc(x.nome) + '</b></td>' +
+    '<td>' + num(x.total) + '</td>' +
+    '<td>' + pct1(x.participacao) + '</td>' +
+    '<td><span class="tag-pct ' + (x.taxaAcionamento >= 80 ? 'verde' : x.taxaAcionamento >= 50 ? 'amarelo' : 'vermelho') + '">' +
+      num(x.acionadas) + ' · ' + pct1(x.taxaAcionamento) + '</span></td>' +
+    '<td>' + num(x.cumpridas) + '</td>' +
+    '<td><span class="tag-pct ' + (x.taxaCumprimento >= 10 ? 'verde' : x.taxaCumprimento > 0 ? 'amarelo' : 'vermelho') + '">' +
+      pct1(x.taxaCumprimento) + '</span></td>' +
+    '<td>' + (x.idadeMedia === null ? '—' : x.idadeMedia.toFixed(1).replace('.', ',') + ' d') + '</td>' +
+    '<td style="color:var(--texto-muted)">' + leitura(x) + '</td></tr>'
+  ).join('') || '<tr><td colspan="8">Nenhuma diligência lançada.</td></tr>';
+}
+
+/* ---------- Histórico de contato com o cartório ---------- */
+function renderHistorico(b, a) {
+  document.getElementById('subHistorico').innerHTML =
+    'A coluna <b>Histórico de contato com o cartório</b> está preenchida em <b>' + num(a.comHistorico) +
+    '</b> das <b>' + num(a.total) + '</b> diligências (' + pct1(a.total ? a.comHistorico / a.total * 100 : null) +
+    '), somando <b>' + num(a.contatos.length) + '</b> contatos anotados. ' +
+    'É o registro que comprova diligência ao cliente e o único lugar onde a resposta do cartório fica escrita.';
+
+  const semNada = b.itens.filter(x => !x.contatos.length && !x.emailEnviado && !x.servidor).length;
+  const canais = Object.entries(a.porCanal).sort((x, y) => y[1] - x[1]);
+  const topCanal = canais.length ? canais[0] : null;
+
+  document.getElementById('resumoHistorico').innerHTML = [
+    itemResumo('Contatos anotados', num(a.contatos.length),
+      'em ' + num(a.comHistorico) + ' diligências', COR_AZUL),
+    itemResumo('Último contato', a.ultimoContato && a.ultimoContato.data
+      ? a.ultimoContato.data.toLocaleDateString('pt-BR') : '—',
+      a.ultimoContato ? esc(a.ultimoContato.canal) : 'nenhum contato datado', COR_CIANO),
+    itemResumo('Sem nenhum registro', num(semNada),
+      'nem histórico, nem e-mail, nem servidor', semNada ? COR_VERMELHO : COR_VERDE),
+    itemResumo('Canal mais usado', topCanal ? esc(topCanal[0]) : '—',
+      topCanal ? topCanal[1] + ' contatos' : 'nenhum canal identificado', COR_ROXO)
+  ].join('');
+
+  destruir('canal');
+  graficos.canal = new Chart(document.getElementById('grafCanal'), {
+    type: 'doughnut',
+    data: { labels: canais.map(c => c[0]),
+      datasets: [{ data: canais.map(c => c[1]),
+        backgroundColor: canais.map((_, i) => PALETA[i % PALETA.length]), borderWidth: 0 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '58%',
+      plugins: { legend: { position: 'right' } } }
+  });
+
+  /* Contatos por dia: mostra se diligenciar é rotina ou surto. */
+  const porDia = {};
+  for (const c of a.contatos) if (c.data) porDia[c.data.getTime()] = (porDia[c.data.getTime()] || 0) + 1;
+  const dias = Object.keys(porDia).map(Number).sort((x, y) => x - y).slice(-30);
+  destruir('contatoDia');
+  graficos.contatoDia = new Chart(document.getElementById('grafContatoDia'), {
+    type: 'bar',
+    data: { labels: dias.map(t => new Date(t).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })),
+      datasets: [{ label: 'Contatos', data: dias.map(t => porDia[t]),
+        backgroundColor: COR_CIANO, borderRadius: 3 }] },
+    options: { responsive: true, maintainAspectRatio: false,
+      scales: { x: { grid: { display: false } }, y: { grid: { color: COR_BORDA } } },
+      plugins: { legend: { display: false } } }
+  });
+
+  const vis = a.contatos.slice(0, 120);
+  document.getElementById('corpoContatos').innerHTML = vis.length ? vis.map(c =>
+    '<tr>' +
+    '<td>' + (c.data ? c.data.toLocaleDateString('pt-BR') : '<span style="color:var(--texto-muted)">sem data</span>') + '</td>' +
+    '<td><span class="tag-pct ' + (c.canal === 'Não identificado' ? 'neutro' : 'azul') + '">' + esc(c.canal) + '</span></td>' +
+    '<td><b>' + esc(c.dil.processo || '—') + '</b></td>' +
+    '<td style="white-space:normal;max-width:200px">' + esc(c.dil.vara) +
+      '<br><span style="color:var(--texto-muted);font-size:.75rem">' + esc(c.dil.comarca) + ' · ' + esc(c.dil.tribunal) + '</span></td>' +
+    '<td style="white-space:normal;max-width:340px">' + esc(c.texto) + '</td></tr>'
+  ).join('') : '<tr><td colspan="5" style="text-align:center;color:var(--texto-muted);padding:1.2rem">Nenhum contato anotado.</td></tr>';
+  if (vis.length) tabelaClicavel('corpoContatos', vis.map(c => c.dil), fichaDiligencia);
+  document.getElementById('notaContatos').textContent =
+    'Exibindo ' + vis.length + ' de ' + a.contatos.length + ' contatos, do mais recente para o mais antigo' +
+    (a.contatos.length > vis.length ? ' (limitado a 120).' : '.');
+}
+
 function renderValores(b, a) {
   document.getElementById('resumoValores').innerHTML = [
     itemResumo('Solicitações registradas', num(a.valTotal), 'em ' + num(a.valProcessos) + ' processos', COR_AZUL),
@@ -1426,7 +1724,9 @@ function renderFila(b) {
     if (f === 'abertas') return x.aberta;
     if (f === 'pendente') return x.status === 'Pendente';
     if (f === 'solicitada') return x.status === 'Solicitada';
+    if (f === 'standby') return x.status === 'Standy By';
     if (f === 'cumprida') return x.status === 'Cumprida';
+    if (f === 'semcontato') return !x.emailEnviado && !x.servidor && !x.contatos.length;
     if (f === 'velhas') return x.aberta && x.idade !== null && x.idade > 7;
     return true;
   };
@@ -1435,18 +1735,34 @@ function renderFila(b) {
     .sort((x, y) => (y.idade === null ? -1 : y.idade) - (x.idade === null ? -1 : x.idade));
   const vis = lista.slice(0, 250);
   const corpo = document.getElementById('corpoFila');
+  /* A fila reproduz TODAS as 19 colunas da planilha, na mesma ordem em que
+     elas aparecem lá — quem cruza os dois lado a lado encontra o mesmo. */
+  const cel = v => '<td>' + (v ? esc(v) : '<span style="color:var(--texto-muted)">—</span>') + '</td>';
+  const celLonga = (v, larg) => '<td style="white-space:normal;max-width:' + larg + 'px">' +
+    (v ? esc(v) : '<span style="color:var(--texto-muted)">—</span>') + '</td>';
   corpo.innerHTML = vis.length ? vis.map(x => {
-    const badge = x.status === 'Cumprida' ? '<span class="tag-pct verde">Cumprida</span>'
-      : x.status === 'Solicitada' ? '<span class="tag-pct amarelo">Solicitada</span>'
-      : '<span class="tag-pct vermelho">Pendente</span>';
+    const badge = '<span class="tag-pct ' + (CLASSE_STATUS[x.status] || 'neutro') + '">' + esc(x.status) + '</span>';
     const idade = x.idade === null ? '—'
       : '<span class="tag-pct ' + (x.idade > 15 ? 'vermelho' : x.idade > 7 ? 'amarelo' : 'neutro') + '">' + x.idade + ' d</span>';
-    return '<tr><td><b>' + esc(x.processo) + '</b><br><span style="color:var(--texto-muted);font-size:.75rem">' + esc(x.tipo) + '</span></td>' +
-      '<td style="white-space:normal;max-width:220px">' + esc(x.diligencia || '—') + '</td>' +
-      '<td style="white-space:normal;max-width:200px">' + esc(x.vara) + '<br><span style="color:var(--texto-muted);font-size:.75rem">' + esc(x.comarca) + ' · ' + esc(x.tribunal) + '</span></td>' +
-      '<td>' + (x.lanc ? x.lanc.toLocaleDateString('pt-BR') : '—') + '</td>' +
-      '<td>' + idade + '</td><td>' + badge + '</td></tr>';
-  }).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--texto-muted);padding:1.2rem">Nenhuma diligência neste filtro.</td></tr>';
+    return '<tr>' +
+      '<td><b>' + esc(x.processo || '—') + '</b></td>' +
+      cel(x.tipo) +
+      celLonga(x.diligencia, 220) +
+      celLonga(x.vara, 190) +
+      cel(x.comarca) + cel(x.tribunal) + cel(x.grau) +
+      cel(x.responsavel) + cel(x.lancPor) +
+      '<td>' + dt(x.lanc) + '</td><td>' + dt(x.real) + '</td><td>' + dt(x.cumpr) + '</td>' +
+      '<td>' + idade + '</td><td>' + badge + '</td>' +
+      cel(x.turno) +
+      '<td>' + (x.emailEnviado ? '<span class="tag-pct verde">Sim</span>'
+                               : '<span class="tag-pct vermelho">Não</span>') + '</td>' +
+      celLonga(x.servidor, 150) +
+      '<td>' + (x.balcao && /^http/i.test(x.balcao)
+        ? '<a href="' + esc(x.balcao) + '" target="_blank" rel="noopener" onclick="event.stopPropagation()">abrir</a>'
+        : '<span style="color:var(--texto-muted)">—</span>') + '</td>' +
+      celLonga(x.historico, 280) +
+      '</tr>';
+  }).join('') : '<tr><td colspan="19" style="text-align:center;color:var(--texto-muted);padding:1.2rem">Nenhuma diligência neste filtro.</td></tr>';
   if (vis.length) tabelaClicavel('corpoFila', vis, fichaDiligencia);
   document.getElementById('notaFila').textContent =
     'Exibindo ' + vis.length + ' de ' + lista.length + ' diligências' + (lista.length > vis.length ? ' (limitado às 250 mais antigas).' : '.');
@@ -1544,6 +1860,8 @@ function render(dados) {
   renderOnde(BASE);
   renderTipos(BASE);
   renderCanal(BASE, a);
+  renderRanking(BASE, a);
+  renderHistorico(BASE, a);
   renderValores(BASE, a);
   renderFila(BASE);
   renderAtencao(BASE, a);
