@@ -31,10 +31,12 @@
   if (window.self !== window.top) document.documentElement.setAttribute('data-portal', '1');
 })();
 </script>
+
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Diligências | Borges Macedo</title>
 <link rel="icon" type="image/png" href="favicon.png" />
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   * { -webkit-tap-highlight-color: transparent; }
@@ -502,6 +504,32 @@
       <div class="card">
         <div class="secao-sub" style="margin:0 0 .6rem 0">Envelhecimento do que está em aberto</div>
         <div class="grafico-box medio"><canvas id="grafAging"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="secao">
+    <div class="secao-titulo">Standy By &mdash; medido &agrave; parte</div>
+    <div class="secao-sub" id="subStandby">&mdash;</div>
+    <div class="resumo-grid" id="resumoStandby"></div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="secao-sub" style="margin:0 0 .6rem 0">H&aacute; quanto tempo a espera dura</div>
+        <div class="grafico-box medio"><canvas id="grafStandbyAging"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="secao-sub" style="margin:0 0 .6rem 0">Varas com mais diligências em espera</div>
+        <div class="grafico-box medio"><canvas id="grafSbVara"></canvas></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="secao-sub" style="margin:0 0 .6rem 0">Quem acionou o que est&aacute; em espera</div>
+      <div class="tabela-wrap">
+        <table>
+          <thead><tr><th>Respons&aacute;vel</th><th>Em Standy By</th><th>Participa&ccedil;&atilde;o</th>
+            <th>Espera m&eacute;dia</th><th>H&aacute; + de 30 dias</th></tr></thead>
+          <tbody id="corpoStandby"></tbody>
+        </table>
       </div>
     </div>
   </section>
@@ -1239,7 +1267,7 @@ function lerHistorico(txt) {
 
 function montarBase(dados, hoje) {
   const c = dados.todas.cab;
-  const itens = dados.todas.linhas.map(l => {
+  const todas = dados.todas.linhas.map(l => {
     const lanc = parseDataBR(campo(l, c, 'DATA DO LANÇAMENTO DA DILIGÊNCIA', 'B'));
     const real = parseDataBR(campo(l, c, 'DATA DA REALIZAÇÃO DA DILIGÊNCIA', 'L'));
     const cumpr = parseDataBR(campo(l, c, 'DATA DO EFETIVO CUMPRIMENTO', 'M'));
@@ -1274,6 +1302,18 @@ function montarBase(dados, hoje) {
     };
   }).filter(Boolean);
 
+  /* Standy By é separado AQUI, na origem, e não em cada gráfico: assim
+     nenhuma medição futura esquece de excluí-lo. É diligência já acionada
+     cujo juízo respondeu que vai cumprir — não há mais ação do escritório a
+     tomar, e contá-la junto pune a equipe por espera que não é atraso dela e
+     infla o backlog com o que não se pode empurrar.
+
+     `itens` é a base de TODA medição desta página.
+     `standby` é medido à parte, na seção própria.
+     `todas` é a planilha inteira, para a fila poder exibir o que se pedir. */
+  const standby = todas.filter(x => x.status === 'Standy By');
+  const itens = todas.filter(x => x.status !== 'Standy By');
+
   const cv = dados.valores.cab;
   const valores = dados.valores.linhas.map(l => {
     const proc = campo(l, cv, 'PROCESSO', 'B');
@@ -1290,7 +1330,7 @@ function montarBase(dados, hoje) {
     };
   }).filter(Boolean);
 
-  return { itens, valores, hoje };
+  return { itens, standby, todas, valores, hoje };
 }
 
 function media(v) { return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null; }
@@ -1308,7 +1348,6 @@ function agregar(b) {
     emailEnviado: it.filter(x => x.emailEnviado).length,
     comBalcao: it.filter(x => x.balcao && /^http/i.test(x.balcao)).length,
     semResponsavel: it.filter(x => x.responsavel === 'Não atribuída').length,
-    standby: it.filter(x => x.status === 'Standy By').length,
     acionadas: it.filter(x => x.acionada).length,
     semStatus: it.filter(x => x.status === 'Não informado').length
   };
@@ -1330,13 +1369,12 @@ function agregar(b) {
   for (const x of it) {
     const k = x.responsavel;
     (porResp[k] = porResp[k] || { nome: k, total: 0, cumpridas: 0, acionadas: 0,
-                                  pendentes: 0, standby: 0, solicitadas: 0,
+                                  pendentes: 0, solicitadas: 0,
                                   comContato: 0, idades: [], ciclos: [] });
     const r = porResp[k];
     r.total++;
     if (x.status === 'Cumprida') r.cumpridas++;
     if (x.status === 'Pendente') r.pendentes++;
-    if (x.status === 'Standy By') r.standby++;
     if (x.status === 'Solicitada') r.solicitadas++;
     if (x.acionada) r.acionadas++;
     if (x.emailEnviado || x.servidor || x.contatos.length) r.comContato++;
@@ -1368,10 +1406,42 @@ function agregar(b) {
   a.porCanal = contar(a.contatos, c => c.canal);
   a.ultimoContato = a.contatos.find(c => c.data) || null;
 
+  /* Standy By, medido sozinho. Não entra em nenhum número acima. */
+  a.sb = agregarStandby(b.standby, a.total);
+
   a.valTotal = b.valores.length;
   a.valFinalizadas = b.valores.filter(x => x.finalizada).length;
   a.valAbertas = a.valTotal - a.valFinalizadas;
   a.valProcessos = new Set(b.valores.map(x => x.processo)).size;
+  return a;
+}
+
+/* Standy By é espera legítima — mas espera longa demais deixa de ser espera e
+   vira esquecimento. Por isso ela sai das medições da página e é medida aqui,
+   sozinha, com a régua que faz sentido para ela: há quanto tempo espera, quem
+   respondeu por ela e onde está represada. Nada disto entra na taxa de
+   cumprimento nem no backlog. */
+function agregarStandby(sb, totalMedido) {
+  const idades = sb.filter(x => x.idade !== null && x.idade >= 0).map(x => x.idade);
+  const a = {
+    total: sb.length,
+    itens: sb,
+    processos: new Set(sb.map(x => x.processo).filter(Boolean)).size,
+    /* Fatia sobre o total LANÇADO — medidas mais o standby —, que é o único
+       lugar da página onde os dois voltam a ser somados. */
+    lancado: totalMedido + sb.length,
+    idadeMedia: media(idades),
+    maisVelha: idades.length ? Math.max(...idades) : null,
+    venc15: idades.filter(x => x > 15).length,
+    venc30: idades.filter(x => x > 30).length,
+    comContato: sb.filter(x => x.emailEnviado || x.servidor || x.contatos.length).length,
+    semResponsavel: sb.filter(x => x.responsavel === 'Não atribuída').length,
+    porResponsavel: contar(sb, x => x.responsavel),
+    porTribunal: contar(sb, x => x.tribunal),
+    porVara: contar(sb, x => x.vara)
+  };
+  a.fatia = a.lancado ? a.total / a.lancado * 100 : null;
+  a.semContato = a.total - a.comContato;
   return a;
 }
 
@@ -1382,9 +1452,14 @@ function contar(arr, chave) {
 }
 
 function renderKPIs(b, a) {
-  document.getElementById('subResumo').textContent =
-    a.total + ' diligências lançadas em ' + a.processos + ' processos · posição de ' +
-    b.hoje.toLocaleDateString('pt-BR') + '.';
+  document.getElementById('subResumo').innerHTML =
+    '<b>' + num(a.total) + '</b> diligências medidas em <b>' + num(a.processos) +
+    '</b> processos · posição de ' + b.hoje.toLocaleDateString('pt-BR') + '.' +
+    (a.sb.total
+      ? ' As <b>' + num(a.sb.total) + '</b> em <b>Standy By</b> (' + pct1(a.sb.fatia) +
+        ' do que foi lançado) ficam <b>fora de toda medição desta página</b> e têm ' +
+        'seção própria — são diligências que o juízo já respondeu que vai cumprir.'
+      : '');
 
   const corCump = a.taxaCumprimento === null ? 'azul' : a.taxaCumprimento >= 60 ? 'verde' : a.taxaCumprimento >= 30 ? 'amarelo' : 'vermelho';
   const corIdade = a.idadeMedia === null ? 'azul' : a.idadeMedia <= 5 ? 'verde' : a.idadeMedia <= 10 ? 'amarelo' : 'vermelho';
@@ -1416,7 +1491,6 @@ function renderBacklog(b, a) {
   document.getElementById('resumoBacklog').innerHTML = [
     itemResumo('Pendentes', num(a.pendentes), EXPLICA_STATUS['Pendente'], a.pendentes ? COR_VERMELHO : COR_VERDE),
     itemResumo('Solicitadas / aguardando', num(a.solicitadas), EXPLICA_STATUS['Solicitada'], COR_AMARELO),
-    itemResumo('Standy By', num(a.standby), EXPLICA_STATUS['Standy By'], COR_CIANO),
     itemResumo('Cumpridas', num(a.cumpridas), pct1(a.taxaCumprimento) + ' do total lançado', a.cumpridas ? COR_VERDE : COR_MUTED),
     itemResumo('Já acionadas', pct1(a.taxaAcionamento),
       num(a.acionadas) + ' saíram da fila inicial', a.taxaAcionamento >= 70 ? COR_VERDE : COR_AMARELO),
@@ -1489,6 +1563,114 @@ function grafBarras(id, mapa, cor, limite) {
       scales: { x: { ticks: { precision: 0 }, grid: { color: COR_BORDA } }, y: { grid: { display: false } } },
       plugins: { legend: { display: false } }
     }
+  });
+}
+
+/* ligarKPIs() só enxerga '#kpis .kpi'. Os tiles do Standy By são
+   .resumo-item em outro contêiner, então precisam do próprio ligador — usar
+   aquele aqui religaria os cartões do topo em cima do que já estava ligado. */
+function ligarResumo(container, mapa) {
+  const itens = document.querySelectorAll('#' + container + ' .resumo-item');
+  Object.keys(mapa).forEach(i => {
+    const el = itens[Number(i)];
+    if (!el) return;
+    el.style.cursor = 'pointer';
+    el.title = 'Clique para ver os registros';
+    el.addEventListener('click', mapa[i]);
+  });
+}
+
+/* ---------- Standy By, medido à parte ---------- */
+function renderStandby(b, a) {
+  const sb = a.sb;
+  document.getElementById('subStandby').innerHTML = sb.total
+    ? '<b>' + num(sb.total) + '</b> diligência(s) em Standy By, em <b>' + num(sb.processos) +
+      '</b> processos — ' + pct1(sb.fatia) + ' de tudo que foi lançado. ' +
+      'Nenhuma delas entra na taxa de cumprimento, no backlog, no ranking ou em qualquer ' +
+      'outro número desta página: o juízo já respondeu que vai cumprir, e não há mais ação ' +
+      'do escritório a tomar. O que se mede aqui é outra coisa — <b>há quanto tempo essa ' +
+      'espera dura</b>, porque espera longa demais deixa de ser espera e vira esquecimento.'
+    : 'Nenhuma diligência em Standy By.';
+
+  document.getElementById('resumoStandby').innerHTML = [
+    itemResumo('Em Standy By', num(sb.total),
+      pct1(sb.fatia) + ' das ' + num(sb.lancado) + ' lançadas', COR_CIANO),
+    itemResumo('Espera média', sb.idadeMedia === null ? '—'
+      : sb.idadeMedia.toFixed(1).replace('.', ',') + ' dias',
+      'desde o lançamento da diligência', COR_AZUL),
+    itemResumo('Esperando há + de 15 dias', num(sb.venc15),
+      num(sb.venc30) + ' passam de 30 dias', sb.venc30 ? COR_VERMELHO : sb.venc15 ? COR_AMARELO : COR_VERDE),
+    itemResumo('Espera mais longa', sb.maisVelha === null ? '—' : sb.maisVelha + ' dias',
+      'a mais antiga em Standy By', sb.maisVelha > 30 ? COR_VERMELHO : COR_AMARELO),
+    itemResumo('Sem contato registrado', num(sb.semContato),
+      'sem e-mail, servidor nem histórico anotado', sb.semContato ? COR_AMARELO : COR_VERDE),
+    itemResumo('Sem responsável', num(sb.semResponsavel),
+      'ninguém para retomar quando o prazo furar', sb.semResponsavel ? COR_VERMELHO : COR_VERDE)
+  ].join('');
+
+  /* Envelhecimento próprio: as faixas do backlog não servem, porque aqui a
+     espera é esperada — o que interessa é quando ela passa do razoável. */
+  const faixas = [
+    { r: 'Até 15 dias', t: d => d <= 15 },
+    { r: '16 a 30 dias', t: d => d > 15 && d <= 30 },
+    { r: '31 a 60 dias', t: d => d > 30 && d <= 60 },
+    { r: 'Mais de 60 dias', t: d => d > 60 }
+  ];
+  const idades = sb.itens.filter(x => x.idade !== null && x.idade >= 0).map(x => x.idade);
+  destruir('sbAging');
+  graficos.sbAging = new Chart(document.getElementById('grafStandbyAging'), {
+    type: 'bar',
+    data: {
+      labels: faixas.map(f => f.r),
+      datasets: [{ label: 'Em Standy By', data: faixas.map(f => idades.filter(f.t).length),
+        backgroundColor: [COR_VERDE, COR_AMARELO, '#f97316', COR_VERMELHO],
+        borderRadius: 4, maxBarThickness: 50 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { x: { grid: { display: false } }, y: { ticks: { precision: 0 }, grid: { color: COR_BORDA } } },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: ctx => num(ctx.parsed.y) + ' diligência(s) — ' +
+          pct1(idades.length ? ctx.parsed.y / idades.length * 100 : null) + ' do Standy By' } }
+      }
+    }
+  });
+
+  grafBarras('sbVara', sb.porVara, COR_CIANO, 8);
+
+  const resp = Object.entries(sb.porResponsavel).sort((x, y) => y[1] - x[1]);
+  document.getElementById('corpoStandby').innerHTML = resp.map(([nome, qtd]) => {
+    const dela = sb.itens.filter(x => x.responsavel === nome);
+    const id = dela.filter(x => x.idade !== null).map(x => x.idade);
+    const m = media(id);
+    const velhas = id.filter(d => d > 30).length;
+    return '<tr><td><b>' + esc(nome) + '</b></td>' +
+      '<td>' + num(qtd) + '</td>' +
+      '<td>' + pct1(sb.total ? qtd / sb.total * 100 : null) + '</td>' +
+      '<td>' + (m === null ? '—' : m.toFixed(1).replace('.', ',') + ' d') + '</td>' +
+      '<td><span class="tag-pct ' + (velhas ? 'vermelho' : 'verde') + '">' + num(velhas) + '</span></td></tr>';
+  }).join('') || '<tr><td colspan="5">Nenhuma diligência em Standy By.</td></tr>';
+
+  ligarResumo('resumoStandby', {
+    0: () => listaDil('Diligências em Standy By', sb.itens,
+      'Fora de toda medição da página. O juízo já respondeu que vai cumprir.'),
+    1: () => listaDil('Standy By por tempo de espera',
+      [...sb.itens].sort((x, y) => (y.idade || 0) - (x.idade || 0)),
+      'Da espera mais longa para a mais curta.'),
+    2: () => listaDil('Standy By há mais de 15 dias',
+      sb.itens.filter(x => x.idade !== null && x.idade > 15),
+      '<b>' + num(sb.venc30) + '</b> destas passam de 30 dias. Vale reabrir contato: ' +
+      'promessa de cumprimento sem data não é cumprimento.', 'critico'),
+    3: () => listaDil('Standy By mais antigas',
+      [...sb.itens].sort((x, y) => (y.idade || 0) - (x.idade || 0)).slice(0, 40),
+      'As 40 esperas mais longas.', 'alerta'),
+    4: () => listaDil('Standy By sem contato registrado',
+      sb.itens.filter(x => !x.emailEnviado && !x.servidor && !x.contatos.length),
+      'Sem registro de contato não há como provar que a espera foi acompanhada.', 'alerta'),
+    5: () => listaDil('Standy By sem responsável',
+      sb.itens.filter(x => x.responsavel === 'Não atribuída'),
+      'Sem dono, ninguém retoma quando a promessa do juízo não se cumprir.', 'critico')
   });
 }
 
@@ -1612,7 +1794,6 @@ function renderRanking(b, a) {
       datasets: [
         { label: 'Pendentes',   data: r.map(x => x.pendentes),   backgroundColor: COR_VERMELHO, borderRadius: 3, stack: 'r' },
         { label: 'Solicitadas', data: r.map(x => x.solicitadas), backgroundColor: COR_AMARELO,  borderRadius: 3, stack: 'r' },
-        { label: 'Standy By',   data: r.map(x => x.standby),     backgroundColor: COR_CIANO,    borderRadius: 3, stack: 'r' },
         { label: 'Cumpridas',   data: r.map(x => x.cumpridas),   backgroundColor: COR_VERDE,    borderRadius: 3, stack: 'r' }
       ]
     },
@@ -1745,18 +1926,23 @@ function renderValores(b, a) {
 
 function renderFila(b) {
   const f = FILTRO_FILA.f;
+  /* A fila lê `todas`, não `itens`: ela é o espelho da planilha e precisa
+     poder mostrar o Standy By quando se clica no chip dele. Os demais chips
+     excluem o standby, para casar com o que a página mede. */
+  const foraDoStandby = x => x.status !== 'Standy By';
   const passa = x => {
     if (f === 'todos') return true;
-    if (f === 'abertas') return x.aberta;
+    if (f === 'standby') return x.status === 'Standy By';
+    if (f === 'abertas') return x.aberta && foraDoStandby(x);
     if (f === 'pendente') return x.status === 'Pendente';
     if (f === 'solicitada') return x.status === 'Solicitada';
-    if (f === 'standby') return x.status === 'Standy By';
     if (f === 'cumprida') return x.status === 'Cumprida';
-    if (f === 'semcontato') return !x.emailEnviado && !x.servidor && !x.contatos.length;
-    if (f === 'velhas') return x.aberta && x.idade !== null && x.idade > 7;
+    if (f === 'semcontato')
+      return foraDoStandby(x) && !x.emailEnviado && !x.servidor && !x.contatos.length;
+    if (f === 'velhas') return foraDoStandby(x) && x.aberta && x.idade !== null && x.idade > 7;
     return true;
   };
-  const lista = b.itens.filter(passa)
+  const lista = b.todas.filter(passa)
     .filter(x => casaBusca(FILTRO_FILA.termo, x.processo, x.diligencia, x.vara, x.comarca, x.tribunal, x.responsavel, x.tipo))
     .sort((x, y) => (y.idade === null ? -1 : y.idade) - (x.idade === null ? -1 : x.idade));
   const vis = lista.slice(0, 250);
@@ -1853,6 +2039,19 @@ function renderAtencao(b, a) {
       'Concentração assim em uma única vara normalmente indica problema estrutural de cartório, não caso isolado.'));
   }
 
+  /* Standy By não é atraso do time, mas espera parada por tempo demais é.
+     Este é o único ponto da página em que ela aparece — e como alerta, não
+     como medida. */
+  if (a.sb.venc30 > 0) {
+    itens.push(obsCard(a.sb.venc30 >= 10 ? 'critico' : 'atencao', '⏸️',
+      'Standy By parado há tempo demais',
+      '<b>' + num(a.sb.venc30) + '</b> diligência(s) em Standy By esperam há mais de <b>30 dias</b>' +
+      (a.sb.maisVelha ? ', e a mais antiga há <b>' + a.sb.maisVelha + ' dias</b>' : '') +
+      '. Standy By significa que o juízo respondeu que vai cumprir — promessa sem data não é ' +
+      'cumprimento. Passado esse tempo, o razoável é reabrir contato e, não havendo resposta, ' +
+      'devolver a diligência para a fila ativa.'));
+  }
+
   if (a.valAbertas > 0) {
     itens.push(obsCard('critico', '💰', 'Valores a receber ainda pendentes',
       '<b>' + num(a.valAbertas) + '</b> de ' + num(a.valTotal) + ' solicitações da aba de valores seguem sem confirmação de liberação. ' +
@@ -1883,6 +2082,7 @@ function render(dados) {
   const a = agregar(BASE);
   renderKPIs(BASE, a);
   renderBacklog(BASE, a);
+  renderStandby(BASE, a);
   renderOnde(BASE);
   renderTipos(BASE);
   renderCanal(BASE, a);
@@ -1913,9 +2113,11 @@ const COL_DIL = [
   { r: 'Responsável', chave: 'responsavel' },
   { r: 'Idade', chave: 'idade', alinha: 'dir', formata: v => v === null ? '—' :
       '<span class="tag-pct ' + (v > 15 ? 'vermelho' : v > 7 ? 'amarelo' : 'neutro') + '">' + v + ' d</span>' },
+  /* CLASSE_STATUS em vez do ternário: com Standy By na lista, o ternário
+     pintava a espera de vermelho, como se fosse atraso do time. */
   { r: 'Situação', chave: 'aberta', formata: (v, l) => !v
       ? '<span class="tag-pct verde">Cumprida</span>'
-      : '<span class="tag-pct ' + (l.status === 'Solicitada' ? 'amarelo' : 'vermelho') + '">' + esc(l.status) + '</span>' }
+      : '<span class="tag-pct ' + (CLASSE_STATUS[l.status] || 'vermelho') + '">' + esc(l.status) + '</span>' }
 ];
 
 function listaDil(titulo, linhas, nota, tipo) {
@@ -1975,10 +2177,20 @@ function ligarDetalheKPIs(b, a) {
    ========================================================================= */
 let DADOS = null;
 
+/* Cada carga leva um número; ao voltar, só desenha se ainda for a mais
+   recente. Sem isso, uma carga antiga que termina depois reescreve a tela com
+   o recorte que o usuário já trocou — e quanto mais demorada a busca, mais
+   provável isso é. */
+let GERACAO_CARGA = 0;
+let ULTIMA_CONCLUIDA = 0;
+
 async function carregarDados() {
   const erroEl = document.getElementById('erroBox');
+  const minhaGeracao = ++GERACAO_CARGA;
   try {
-    DADOS = await buscarTudo();
+    const dados = await buscarTudo();
+    if (minhaGeracao !== GERACAO_CARGA) return;   // outra carga começou depois
+    DADOS = dados;
     const idLink = CONFIG.SHEET_ID ||
       (CONFIG.SHEETS ? Object.values(CONFIG.SHEETS)[0] : null);
     const linkEl = document.getElementById('linkPlanilha');
@@ -1990,7 +2202,9 @@ async function carregarDados() {
     document.getElementById('atualizadoEm').textContent =
       'Atualizado às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     render(DADOS);
+    ULTIMA_CONCLUIDA = minhaGeracao;
   } catch (e) {
+    if (minhaGeracao !== GERACAO_CARGA) return;   // falha de carga já superada
     console.error(e);
     document.getElementById('carregando').classList.add('oculto');
     erroEl.classList.remove('oculto');
@@ -2001,7 +2215,13 @@ async function carregarDados() {
 }
 
 document.getElementById('btnAtualizar').addEventListener('click', carregarDados);
-document.addEventListener('visibilitychange', () => { if (!document.hidden && DADOS) carregarDados(); });
+/* Voltar para a aba não pode empilhar carga sobre carga em andamento: numa
+   busca longa isso multiplicava chamadas à fonte sem trazer nada de novo. */
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden || !DADOS) return;
+  if (GERACAO_CARGA !== ULTIMA_CONCLUIDA) return;   // ainda carregando
+  carregarDados();
+});
 setInterval(() => { if (DADOS) carregarDados(); }, CONFIG.AUTO_REFRESH_MIN * 60 * 1000);
 
 const CHAVE_SESSAO = 'dashboard-diligencias_sessao';
